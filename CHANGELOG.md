@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-10-11
+
+### Fixed
+- 🛑 A timer with the enable switch off stays idle when Shabbat or another activation condition turns on, and it ignores active and inactive slots. The switch does not change controlled entity state.
+
 ## [2.0.3] - 2026-09-27
 
 ### Fixed

@@ -26,6 +26,9 @@ from .const import (
     SLOT_MINUTES,
     SLOT_RESOLUTION_15,
     SLOT_RESOLUTION_30,
+    STATE_ACTIVE,
+    STATE_BLOCKED,
+    STATE_IDLE,
     CONF_LAST_SHOULD_BE_ON,
     CONF_LAST_SLOT_KEY,
     CONF_SLOT_RESOLUTION,
@@ -41,6 +44,21 @@ _CONTROL_MAX_ATTEMPTS = 3
 # IR and cloud AC integrations build the next command from the entity state, so
 # a follow-up sent before the state catches up can re-send an "off" payload.
 _CONTROL_SETTLE_SECONDS = 10
+
+
+def reported_timer_state(enabled: bool, home_status: bool, slot_active: bool) -> str:
+    """Return the timer sensor state.
+
+    A disabled timer stays idle when an activation condition such as Shabbat
+    is on, even if the current slot is selected.
+    """
+    if not enabled:
+        return STATE_IDLE
+    if not home_status:
+        return STATE_BLOCKED
+    if slot_active:
+        return STATE_ACTIVE
+    return STATE_IDLE
 
 
 class ShabbatClockCoordinator(DataUpdateCoordinator):
@@ -563,6 +581,7 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
     async def _async_control_entities(self) -> None:
         """Control entities based on time slots and activation conditions."""
         if not self._enabled:
+            # Leave entities as they are. A disabled timer ignores slot changes.
             _LOGGER.debug("Timer is disabled, skipping entity control")
             return
 
@@ -1073,16 +1092,20 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
         )
     
     async def async_set_enabled(self, enabled: bool) -> None:
-        """Set timer enabled state."""
+        """Set timer enabled state.
+
+        Disabled means the schedule does nothing on active or inactive slots.
+        The switch itself does not change controlled entity state.
+        """
         _LOGGER.info("Setting timer enabled state: %s → %s", self._enabled, enabled)
         self._enabled = enabled
-        
+
         # Save to config entry options
         new_options = {**self.config_entry.options, "enabled": enabled}
         self.hass.config_entries.async_update_entry(
             self.config_entry, options=new_options
         )
-        
+
         self._clear_control_memory()
         self._control_intent = None
         if not enabled:
@@ -1091,7 +1114,7 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
             # Re-enabling catches up an active slot without forcing an off slot.
             self._last_should_be_on = None
             self._enforced_home_status = None
-        await self._control_entities()
+            await self._control_entities()
         
         # Update the entity
         self.async_set_updated_data(

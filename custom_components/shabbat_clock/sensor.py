@@ -12,6 +12,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .coordinator import reported_timer_state
 from .const import (
     ATTR_CONTROLLED_ENTITIES,
     ATTR_CURRENT_SLOT,
@@ -27,9 +28,6 @@ from .const import (
     CONF_HOME_SENSORS,
     DEFAULT_HOME_LOGIC,
     DOMAIN,
-    STATE_ACTIVE,
-    STATE_BLOCKED,
-    STATE_IDLE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,20 +67,19 @@ class ShabbatClockEntity(CoordinatorEntity, SensorEntity):
             name=name,
             manufacturer="Shabbat Clock",
             model="Shabbat Clock",
-            sw_version="2.0.0",
+            sw_version="2.0.4",
         )
 
     @property
     def state(self) -> str:
         """Return the state of the timer."""
-        if not self.coordinator.home_status:
-            return STATE_BLOCKED
-        
         current_slot = self.coordinator.get_current_slot()
-        if current_slot and current_slot.get("isActive"):
-            return STATE_ACTIVE
-        
-        return STATE_IDLE
+        slot_active = bool(current_slot and current_slot.get("isActive"))
+        return reported_timer_state(
+            self.coordinator.enabled,
+            self.coordinator.home_status,
+            slot_active,
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

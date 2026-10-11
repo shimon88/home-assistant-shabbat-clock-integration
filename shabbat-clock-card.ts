@@ -1484,7 +1484,7 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
     }
 
     const demo = this.isDemoPreview();
-    const homeStatus = demo ? true : this.getHomeStatus();
+    const homeStatus = demo ? true : (this.getHomeStatus() && this.getEnabled());
     const entityName = this.getEntityName();
     const timeSlots = demo ? this.getDemoTimeSlots() : this.getTimeSlots();
 
@@ -1582,7 +1582,7 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
                 `;
               }
               const status = this.getControlledEntitiesStatus();
-              const homeStatus = this.getHomeStatus();
+              const homeStatus = this.getHomeStatus() && this.getEnabled();
               
               // Determine indicator color and status
               let indicatorColor = '#9ca3af'; // Gray - default

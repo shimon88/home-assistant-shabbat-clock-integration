@@ -57,7 +57,7 @@ import importlib.util  # noqa: E402
 sys.meta_path.insert(0, _StubFinder())
 
 sys.path.insert(0, str(REPO_ROOT / "custom_components"))
-from shabbat_clock.coordinator import ShabbatClockCoordinator  # noqa: E402
+from shabbat_clock.coordinator import ShabbatClockCoordinator, reported_timer_state  # noqa: E402
 
 results: list[tuple[str, bool, str]] = []
 
@@ -166,6 +166,22 @@ check(
     "toggle_hour leaves other hours untouched",
     active_of(coord, 6) == [0] and active_of(coord, 7) == [0, 15, 30, 45],
     f"hour 6: {active_of(coord, 6)}, hour 7: {active_of(coord, 7)}",
+)
+
+check(
+    "disabled timer stays idle while condition and slot are on",
+    reported_timer_state(False, True, True) == "idle",
+    reported_timer_state(False, True, True),
+)
+check(
+    "enabled timer is active when condition and slot are on",
+    reported_timer_state(True, True, True) == "active",
+    reported_timer_state(True, True, True),
+)
+check(
+    "enabled timer is blocked when the condition is off",
+    reported_timer_state(True, False, True) == "blocked",
+    reported_timer_state(True, False, True),
 )
 
 failed = 0

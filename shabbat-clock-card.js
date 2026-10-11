@@ -258,7 +258,7 @@ function t(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPro
             ${this.localize("entity_not_found")} (${this.config.entity})
           </div>
         </ha-card>
-      `;const t=this.isDemoPreview(),e=!!t||this.getHomeStatus(),i=this.getEntityName(),o=t?this.getDemoTimeSlots():this.getTimeSlots(),s=ft.CENTER,n=ft.CENTER,r=ft.RING_OUTER,a=ft.RING_INNER;return W`
+      `;const t=this.isDemoPreview(),e=!!t||this.getHomeStatus()&&this.getEnabled(),i=this.getEntityName(),o=t?this.getDemoTimeSlots():this.getTimeSlots(),s=ft.CENTER,n=ft.CENTER,r=ft.RING_OUTER,a=ft.RING_INNER;return W`
       <ha-card>
         ${!1!==this.config.show_title?W`
           <div class="header">
@@ -342,7 +342,7 @@ function t(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPro
                   style="pointer-events: none; user-select: none;">
                   ${this.localize("on")}
                 </text>
-                `;const e=this.getControlledEntitiesStatus();let i="#9ca3af",o="—";return this.getHomeStatus()?0===e.total?(i="#d1d5db",o="—"):0===e.active?(i="#ef4444",o=this.localize("off")):e.active===e.total?(i="#10b981",o=this.localize("on")):(i="#f59e0b",o=`${e.active}/${e.total}`):(i="#9ca3af",o="—"),B`
+                `;const e=this.getControlledEntitiesStatus();let i="#9ca3af",o="—";return this.getHomeStatus()&&this.getEnabled()?0===e.total?(i="#d1d5db",o="—"):0===e.active?(i="#ef4444",o=this.localize("off")):e.active===e.total?(i="#10b981",o=this.localize("on")):(i="#f59e0b",o=`${e.active}/${e.total}`):(i="#9ca3af",o="—"),B`
                 <!-- Full inner circle indicator -->
                 <circle 
                   cx="${s}" 
