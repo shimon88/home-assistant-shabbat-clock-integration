@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.5] - 2026-10-16
+
+### Changed
+- 🔌 The timer no longer tracks whether it turned a load on. The current slot flipping from off to on turns the load on when activation conditions are met. Flipping from on to off turns the load off, including a load that was already on and a toggle of the current slot. Moving to another slot with the same on or off state leaves the load unchanged.
+
 ## [2.0.4] - 2026-10-11
 
 ### Fixed

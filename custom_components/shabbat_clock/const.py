@@ -17,7 +17,8 @@ CONF_LAST_SHOULD_BE_ON: Final = "last_should_be_on"
 
 # Options the coordinator writes while running. A reload rebuilds the
 # coordinator and drops the per-slot retry and override tracking, so these
-# writes must not reload the config entry.
+# writes must not reload the config entry. timer_owns_entities is legacy
+# and is no longer read.
 RUNTIME_OPTION_KEYS: Final = frozenset(
     {
         "time_slots",
