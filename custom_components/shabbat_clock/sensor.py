@@ -67,7 +67,7 @@ class ShabbatClockEntity(CoordinatorEntity, SensorEntity):
             name=name,
             manufacturer="Shabbat Clock",
             model="Shabbat Clock",
-            sw_version="2.0.6",
+            sw_version="2.0.7",
         )
 
     @property
