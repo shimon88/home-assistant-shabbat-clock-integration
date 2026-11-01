@@ -69,6 +69,7 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
         self.hass = hass
         self._time_slots: list[dict[str, Any]]
         self._home_status: bool = True
+        self._last_home_status: bool = True
         self._enabled: bool = True
         self._slot_resolution: int = SLOT_RESOLUTION_15
         self._needs_persist: bool = False
@@ -516,14 +517,18 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
     ) -> bool | None:
         """Return the on/off target to finish, or None to leave entities alone.
 
-        A command is decided only when the current slot flips between active
-        and inactive. Off to on turns entities on when activation conditions
-        are met. On to off turns entities off. The next slot with the same
-        on/off state does not change the load. Later ticks may only finish
-        the command from that flip (retries, climate temperature).
+        A command is decided when the current slot flips between active and
+        inactive, or when activation conditions become met during an active
+        slot. Off to on turns entities on when activation conditions are met.
+        On to off turns entities off. Conditions becoming met while the slot
+        is already on turns entities on. The next slot with the same on/off
+        state does not change the load. Later ticks may only finish the
+        command from that edge (retries, climate temperature).
         """
         previous_on = self._last_should_be_on
         slot_changed = previous_on is not None and should_be_on != previous_on
+        home_just_met = self._home_status and not self._last_home_status
+        self._last_home_status = self._home_status
 
         self._remember_schedule_sample(slot_key, should_be_on)
 
@@ -538,6 +543,10 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
                 )
             else:
                 self._control_intent = should_be_on
+        elif home_just_met and should_be_on:
+            # Conditions became met while the slot was already on: turn on now.
+            self._begin_control_edge()
+            self._control_intent = True
         elif self._control_intent is True and not self._home_status:
             # Conditions dropped before the on command finished.
             self._control_intent = None

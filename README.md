@@ -45,7 +45,7 @@ show_title: true
 
 The dial is a single ring of consecutive slots, like a mechanical timer: 48 half-hour wedges (00:00, 00:30, 01:00 …) or 96 quarter wedges in the 15-minute view. Tap a wedge to toggle it, press and hold to toggle the whole hour, or swipe across the ring to set a range in one gesture. The first wedge of a swipe decides the direction, so starting on an active wedge clears the ones you drag over. A swipe is saved as one `set_slots` call when you lift your finger. Red marks the current slot.
 
-The timer commands a load only when the current slot changes between off and on. Off to on turns the load on when activation conditions are met. On to off turns the load off. The next slot with the same on or off state does not change the load, and a later minute tick does not correct a manual change. A failed command retries at most three times.
+The timer commands a load when the current slot changes between off and on, or when activation conditions become met during an on slot. Off to on turns the load on when activation conditions are met. On to off turns the load off. Conditions becoming met while the current slot is already on turns the load on. The next slot with the same on or off state does not change the load, and a later minute tick does not correct a manual change. A failed command retries at most three times.
 
 ## Configuration
 

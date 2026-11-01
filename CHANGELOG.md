@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.6] - 2026-11-01
+
+### Fixed
+- ❄️ An on slot now turns the load on when activation conditions become met, for example when Shabbat mode turns on. Previously the timer only sent an on command when the slot itself flipped from off to on, so the AC stayed off until the slot was toggled.
+
 ## [2.0.5] - 2026-10-16
 
 ### Changed
