@@ -233,7 +233,8 @@ function t(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPro
             fill="${d?"#10b981":l%2==0?"#ffffff":"#f3f4f6"}"
             stroke="${h?"#3b82f6":"#e5e7eb"}"
             stroke-width="${h?"1.5":"0.75"}"
-            style="cursor: pointer; transition: fill 0.15s;">
+            class="slot-sector"
+            style="cursor: pointer; transition: fill 0.15s; touch-action: none;">
             <title>${this.getTimeLabel(l,c[0])}</title>
           </path>
         `})}
@@ -258,7 +259,7 @@ function t(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPro
             ${this.localize("entity_not_found")} (${this.config.entity})
           </div>
         </ha-card>
-      `;const t=this.isDemoPreview(),e=!!t||this.getHomeStatus(),i=this.getEntityName(),o=t?this.getDemoTimeSlots():this.getTimeSlots(),s=ft.CENTER,n=ft.CENTER,r=ft.RING_OUTER,a=ft.RING_INNER;return W`
+      `;const t=this.isDemoPreview(),e=!!t||this.getHomeStatus()&&this.getEnabled(),i=this.getEntityName(),o=t?this.getDemoTimeSlots():this.getTimeSlots(),s=ft.CENTER,n=ft.CENTER,r=ft.RING_OUTER,a=ft.RING_INNER;return W`
       <ha-card>
         ${!1!==this.config.show_title?W`
           <div class="header">
@@ -330,7 +331,7 @@ function t(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPro
                   cy="${n}" 
                   r="${a}" 
                   fill="#10b981"
-                  style="cursor: default;">
+                  style="cursor: default; touch-action: pan-y;">
                 </circle>
                 <text 
                   x="${s}" 
@@ -342,14 +343,14 @@ function t(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPro
                   style="pointer-events: none; user-select: none;">
                   ${this.localize("on")}
                 </text>
-                `;const e=this.getControlledEntitiesStatus();let i="#9ca3af",o="—";return this.getHomeStatus()?0===e.total?(i="#d1d5db",o="—"):0===e.active?(i="#ef4444",o=this.localize("off")):e.active===e.total?(i="#10b981",o=this.localize("on")):(i="#f59e0b",o=`${e.active}/${e.total}`):(i="#9ca3af",o="—"),B`
+                `;const e=this.getControlledEntitiesStatus();let i="#9ca3af",o="—";return this.getHomeStatus()&&this.getEnabled()?0===e.total?(i="#d1d5db",o="—"):0===e.active?(i="#ef4444",o=this.localize("off")):e.active===e.total?(i="#10b981",o=this.localize("on")):(i="#f59e0b",o=`${e.active}/${e.total}`):(i="#9ca3af",o="—"),B`
                 <!-- Full inner circle indicator -->
                 <circle 
                   cx="${s}" 
                   cy="${n}" 
                   r="${a}" 
                   fill="${i}"
-                  style="cursor: pointer;"
+                  style="cursor: pointer; touch-action: pan-y;"
                   @click="${t=>this.handleCenterClick(t)}">
                 </circle>
                 
@@ -468,6 +469,8 @@ function t(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPro
         padding: 0;
         flex: 1;
         min-height: 180px;
+        /* Empty clock area scrolls. Slots opt out with touch-action: none. */
+        touch-action: pan-y;
       }
       
       .timer-svg {
@@ -479,11 +482,15 @@ function t(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPro
         object-fit: contain;
         direction: ltr;
         unicode-bidi: isolate;
-        /* Swipe across slots must paint, not scroll the dashboard */
-        touch-action: none;
+        /* Center and the margin around the ring scroll. Slots do not. */
+        touch-action: pan-y;
         user-select: none;
         -webkit-user-select: none;
         -webkit-touch-callout: none;
+      }
+
+      .slot-sector {
+        touch-action: none;
       }
       
       @container (max-width: 250px) {

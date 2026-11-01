@@ -26,10 +26,12 @@ from .const import (
     SLOT_MINUTES,
     SLOT_RESOLUTION_15,
     SLOT_RESOLUTION_30,
+    STATE_ACTIVE,
+    STATE_BLOCKED,
+    STATE_IDLE,
     CONF_LAST_SHOULD_BE_ON,
     CONF_LAST_SLOT_KEY,
     CONF_SLOT_RESOLUTION,
-    CONF_TIMER_OWNS_ENTITIES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,6 +45,21 @@ _CONTROL_MAX_ATTEMPTS = 3
 _CONTROL_SETTLE_SECONDS = 10
 
 
+def reported_timer_state(enabled: bool, home_status: bool, slot_active: bool) -> str:
+    """Return the timer sensor state.
+
+    A disabled timer stays idle when an activation condition such as Shabbat
+    is on, even if the current slot is selected.
+    """
+    if not enabled:
+        return STATE_IDLE
+    if not home_status:
+        return STATE_BLOCKED
+    if slot_active:
+        return STATE_ACTIVE
+    return STATE_IDLE
+
+
 class ShabbatClockCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Shabbat Clock data."""
 
@@ -52,6 +69,7 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
         self.hass = hass
         self._time_slots: list[dict[str, Any]]
         self._home_status: bool = True
+        self._last_home_status: bool = True
         self._enabled: bool = True
         self._slot_resolution: int = SLOT_RESOLUTION_15
         self._needs_persist: bool = False
@@ -63,15 +81,9 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
         # Schedule ticks, condition changes and service calls can all request
         # control at once. Serialize them so an entity gets one command at a time.
         self._control_lock: asyncio.Lock | None = asyncio.Lock()
-        # True only after this timer sent an on command for the current block.
-        # An off edge turns entities off only while conditions are still met.
-        self._timer_owns_entities: bool = bool(
-            config_entry.options.get(CONF_TIMER_OWNS_ENTITIES, False)
-        )
         # On/off decision still being finished (retries, climate temperature).
-        # None means leave entities alone until the next schedule or condition edge.
+        # None means leave entities alone until the current slot flips on/off.
         self._control_intent: bool | None = None
-        self._enforced_home_status: bool | None = None
         self._current_slot_key: str | None = config_entry.options.get(
             CONF_LAST_SLOT_KEY
         )
@@ -505,49 +517,39 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
     ) -> bool | None:
         """Return the on/off target to finish, or None to leave entities alone.
 
-        A command is decided only when the slot flips active/inactive, when
-        activation conditions become met during an active slot, or on the first
-        sample of an active slot (startup catch-up). Later ticks may only
-        finish that command. An off is sent only if this timer sent the on
-        and the conditions are still met.
+        A command is decided when the current slot flips between active and
+        inactive, or when activation conditions become met during an active
+        slot. Off to on turns entities on when activation conditions are met.
+        On to off turns entities off. Conditions becoming met while the slot
+        is already on turns entities on. The next slot with the same on/off
+        state does not change the load. Later ticks may only finish the
+        command from that edge (retries, climate temperature).
         """
-        home = self._home_status
         previous_on = self._last_should_be_on
-        previous_home = self._enforced_home_status
         slot_changed = previous_on is not None and should_be_on != previous_on
-        first_sample = previous_on is None
-        home_became_met = previous_home is False and home
+        home_just_met = self._home_status and not self._last_home_status
+        self._last_home_status = self._home_status
 
         self._remember_schedule_sample(slot_key, should_be_on)
-        self._enforced_home_status = home
 
-        if not home:
-            self._control_intent = None
-            if not should_be_on:
-                self._set_timer_owns_entities(False)
-            _LOGGER.debug(
-                "Activation conditions not met, skipping entity control "
-                "(slot_active=%s, timer_owns=%s)",
-                should_be_on,
-                self._timer_owns_entities,
-            )
-            return None
-
-        if first_sample:
-            # Persisted ownership from another day is not a command we sent now.
-            self._set_timer_owns_entities(False)
-            if not should_be_on:
-                self._control_intent = None
-
-        new_edge = slot_changed or home_became_met or (first_sample and should_be_on)
-        if new_edge:
+        if slot_changed:
             self._begin_control_edge()
-            if should_be_on:
-                self._control_intent = True
-            elif self._timer_owns_entities:
-                self._control_intent = False
-            else:
+            if should_be_on and not self._home_status:
                 self._control_intent = None
+                _LOGGER.debug(
+                    "Activation conditions not met, skipping turn on "
+                    "(slot_active=%s)",
+                    should_be_on,
+                )
+            else:
+                self._control_intent = should_be_on
+        elif home_just_met and should_be_on:
+            # Conditions became met while the slot was already on: turn on now.
+            self._begin_control_edge()
+            self._control_intent = True
+        elif self._control_intent is True and not self._home_status:
+            # Conditions dropped before the on command finished.
+            self._control_intent = None
 
         return self._control_intent
 
@@ -563,6 +565,7 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
     async def _async_control_entities(self) -> None:
         """Control entities based on time slots and activation conditions."""
         if not self._enabled:
+            # Leave entities as they are. A disabled timer ignores slot changes.
             _LOGGER.debug("Timer is disabled, skipping entity control")
             return
 
@@ -585,7 +588,6 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
 
             desired = self._build_desired_control(entity_id, target)
             step = self._next_control_step(entity_id, entity, desired)
-            was_on = self._is_entity_on(entity_id, entity)
 
             if step is None:
                 self._last_controlled_states[entity_id] = desired
@@ -632,8 +634,6 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
 
             try:
                 await self._async_send_step(entity_id, step_name, payload)
-                if target and not was_on:
-                    self._set_timer_owns_entities(True)
 
                 _LOGGER.info(
                     "Sent %s to %s based on timer schedule (payload=%s, state=%s)",
@@ -654,8 +654,6 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
                 self._clear_control_memory(entity_id)
 
         if self._controlled_entities_match(entities, target):
-            if not target:
-                self._set_timer_owns_entities(False)
             self._control_intent = None
 
     def _controlled_entities_match(
@@ -683,18 +681,10 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
             self.config_entry,
             options={
                 **self.config_entry.options,
-                CONF_TIMER_OWNS_ENTITIES: self._timer_owns_entities,
                 CONF_LAST_SLOT_KEY: self._current_slot_key,
                 CONF_LAST_SHOULD_BE_ON: self._last_should_be_on,
             },
         )
-
-    def _set_timer_owns_entities(self, owns: bool) -> None:
-        """Persist whether the timer is responsible for switching entities off."""
-        if self._timer_owns_entities == owns:
-            return
-        self._timer_owns_entities = owns
-        self._persist_control_state()
 
     def _clear_attempts(self, entity_id: str) -> None:
         """Drop the retry counters of every control step of an entity."""
@@ -1073,25 +1063,25 @@ class ShabbatClockCoordinator(DataUpdateCoordinator):
         )
     
     async def async_set_enabled(self, enabled: bool) -> None:
-        """Set timer enabled state."""
+        """Set timer enabled state.
+
+        Disabled means the schedule does nothing. Enabling applies a slot
+        flip that happened while the timer was disabled.
+        """
         _LOGGER.info("Setting timer enabled state: %s → %s", self._enabled, enabled)
         self._enabled = enabled
-        
+
         # Save to config entry options
         new_options = {**self.config_entry.options, "enabled": enabled}
         self.hass.config_entries.async_update_entry(
             self.config_entry, options=new_options
         )
-        
+
         self._clear_control_memory()
         self._control_intent = None
-        if not enabled:
-            self._set_timer_owns_entities(False)
-        else:
-            # Re-enabling catches up an active slot without forcing an off slot.
-            self._last_should_be_on = None
-            self._enforced_home_status = None
-        await self._control_entities()
+        if enabled:
+            # Apply a slot flip that happened while the timer was disabled.
+            await self._control_entities()
         
         # Update the entity
         self.async_set_updated_data(

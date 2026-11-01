@@ -570,6 +570,9 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
    * The first wedge decides the paint value, so dragging over already active
    * wedges clears them instead of flipping each one. Holding still for
    * LONG_PRESS_MS toggles the whole hour.
+   *
+   * A touch outside the wedges does not capture the pointer, so the center
+   * and the margin around the ring can scroll the dashboard.
    */
   private handleRingPointerDown(event: PointerEvent): void {
     const index = this.getSectorFromPointer(event);
@@ -1427,7 +1430,8 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
             fill="${isActive ? '#10b981' : (hour % 2 === 0 ? '#ffffff' : '#f3f4f6')}"
             stroke="${selected ? selectColor : '#e5e7eb'}"
             stroke-width="${selected ? '1.5' : '0.75'}"
-            style="cursor: pointer; transition: fill 0.15s;">
+            class="slot-sector"
+            style="cursor: pointer; transition: fill 0.15s; touch-action: none;">
             <title>${this.getTimeLabel(hour, minutes[0])}</title>
           </path>
         `;
@@ -1484,7 +1488,7 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
     }
 
     const demo = this.isDemoPreview();
-    const homeStatus = demo ? true : this.getHomeStatus();
+    const homeStatus = demo ? true : (this.getHomeStatus() && this.getEnabled());
     const entityName = this.getEntityName();
     const timeSlots = demo ? this.getDemoTimeSlots() : this.getTimeSlots();
 
@@ -1567,7 +1571,7 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
                   cy="${centerY}" 
                   r="${innerRadius}" 
                   fill="#10b981"
-                  style="cursor: default;">
+                  style="cursor: default; touch-action: pan-y;">
                 </circle>
                 <text 
                   x="${centerX}" 
@@ -1582,7 +1586,7 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
                 `;
               }
               const status = this.getControlledEntitiesStatus();
-              const homeStatus = this.getHomeStatus();
+              const homeStatus = this.getHomeStatus() && this.getEnabled();
               
               // Determine indicator color and status
               let indicatorColor = '#9ca3af'; // Gray - default
@@ -1617,7 +1621,7 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
                   cy="${centerY}" 
                   r="${innerRadius}" 
                   fill="${indicatorColor}"
-                  style="cursor: pointer;"
+                  style="cursor: pointer; touch-action: pan-y;"
                   @click="${(e: Event) => this.handleCenterClick(e)}">
                 </circle>
                 
@@ -1741,6 +1745,8 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
         padding: 0;
         flex: 1;
         min-height: 180px;
+        /* Empty clock area scrolls. Slots opt out with touch-action: none. */
+        touch-action: pan-y;
       }
       
       .timer-svg {
@@ -1752,11 +1758,15 @@ export class ShabbatClockCard extends LitElement implements LovelaceCard {
         object-fit: contain;
         direction: ltr;
         unicode-bidi: isolate;
-        /* Swipe across slots must paint, not scroll the dashboard */
-        touch-action: none;
+        /* Center and the margin around the ring scroll. Slots do not. */
+        touch-action: pan-y;
         user-select: none;
         -webkit-user-select: none;
         -webkit-touch-callout: none;
+      }
+
+      .slot-sector {
+        touch-action: none;
       }
       
       @container (max-width: 250px) {

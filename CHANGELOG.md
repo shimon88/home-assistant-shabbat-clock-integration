@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.7] - 2026-11-01
+
+### Fixed
+- 📱 A swipe on the center of the clock, or on the margin around the ring, scrolls the dashboard. A swipe on a time slot still paints slots in any direction.
+
+## [2.0.6] - 2026-11-01
+
+### Fixed
+- ❄️ An on slot now turns the load on when activation conditions become met, for example when Shabbat mode turns on. Previously the timer only sent an on command when the slot itself flipped from off to on, so the AC stayed off until the slot was toggled.
+
+## [2.0.5] - 2026-10-16
+
+### Changed
+- 🔌 The timer no longer tracks whether it turned a load on. The current slot flipping from off to on turns the load on when activation conditions are met. Flipping from on to off turns the load off, including a load that was already on and a toggle of the current slot. Moving to another slot with the same on or off state leaves the load unchanged.
+
+## [2.0.4] - 2026-10-11
+
+### Fixed
+- 🛑 A timer with the enable switch off stays idle when Shabbat or another activation condition turns on, and it ignores active and inactive slots. The switch does not change controlled entity state.
+
 ## [2.0.3] - 2026-09-27
 
 ### Fixed
